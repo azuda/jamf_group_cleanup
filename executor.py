@@ -1,5 +1,7 @@
+import os
 from dataclasses import dataclass, field
-from api import classic_put, classic_delete
+from api import classic_get, classic_put, classic_delete
+from resolver import _parse_group_xml
 
 
 @dataclass
@@ -31,13 +33,37 @@ def execute(resolved_merges: list, token: dict, session) -> list:
             continue
 
         if rm.group_type == "computer":
-            put_path = f"/JSSResource/computergroups/id/{rm.target_id}"
+            fetch_path = f"/JSSResource/computergroups/id/{rm.target_id}"
+            put_path = fetch_path
             del_path = f"/JSSResource/computergroups/id/{rm.source_id}"
         else:
-            put_path = f"/JSSResource/mobiledevicegroups/id/{rm.target_id}"
+            fetch_path = f"/JSSResource/mobiledevicegroups/id/{rm.target_id}"
+            put_path = fetch_path
             del_path = f"/JSSResource/mobiledevicegroups/id/{rm.source_id}"
 
-        new_members = rm.target_members + rm.delta
+        fresh_response = classic_get(fetch_path, token, session)
+        if not fresh_response.ok:
+            results.append(MergeResult(
+                resolved=rm,
+                status="FAIL",
+                error=f"GET target {fresh_response.status_code}: {fresh_response.text[:200]}",
+            ))
+            continue
+
+        os.makedirs("debug", exist_ok=True)
+        with open(f"debug/target_{rm.target_id}.xml", "w") as f:
+            f.write(fresh_response.text)
+
+        fresh_target = _parse_group_xml(fresh_response.text, rm.group_type)
+        fresh_target_members = fresh_target["members"]
+        fresh_target_set = set(fresh_target_members)
+        fresh_delta = [m for m in rm.source_members if m not in fresh_target_set]
+
+        if not fresh_delta:
+            results.append(MergeResult(resolved=rm, status="SKIP"))
+            continue
+
+        new_members = fresh_target_members + fresh_delta
         xml_body = _build_members_xml(new_members, rm.group_type)
 
         put_response = None
@@ -59,10 +85,10 @@ def execute(resolved_merges: list, token: dict, session) -> list:
             results.append(MergeResult(
                 resolved=rm,
                 status="FAIL",
-                members_added=rm.delta,
+                members_added=fresh_delta,
                 error=f"DELETE {del_response.status_code}: {del_response.text[:200]}",
             ))
         else:
-            results.append(MergeResult(resolved=rm, status="OK", members_added=rm.delta))
+            results.append(MergeResult(resolved=rm, status="OK", members_added=fresh_delta))
 
     return results

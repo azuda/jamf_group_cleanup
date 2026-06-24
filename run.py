@@ -27,7 +27,7 @@ def main():
     with open(config_path) as f:
         config = yaml.safe_load(f)
 
-    entries = config.get("merges", [])
+    entries = (config or {}).get("merges", [])
     if not entries:
         print("No merges defined in merge.yaml.", file=sys.stderr)
         sys.exit(1)
@@ -50,6 +50,9 @@ def main():
 
         results = execute(resolved, token, session)
         print_results(results)
+
+        if any(r.status == "FAIL" for r in results):
+            sys.exit(1)
 
         log_path = os.environ.get("LOG_FILE")
         if log_path:

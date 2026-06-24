@@ -5,13 +5,6 @@ from api import classic_get
 
 
 @dataclass
-class MergeConfig:
-    source: str | int
-    target: str | int
-    group_type: str
-
-
-@dataclass
 class ResolvedMerge:
     source_id: int
     source_name: str
@@ -69,9 +62,17 @@ def resolve(entries, token, session):
     errors = []
 
     for i, entry in enumerate(entries):
-        source_ref = entry["source"]
-        target_ref = entry["target"]
-        group_type = entry["type"]
+        source_ref = entry.get("source")
+        target_ref = entry.get("target")
+        group_type = entry.get("type", "")
+        missing_keys = [k for k, v in [("source", source_ref), ("target", target_ref), ("type", group_type or None)] if v is None]
+        if missing_keys:
+            errors.append(ValidationError(i, f"missing required fields: {', '.join(missing_keys)}"))
+            continue
+
+        if group_type not in ("computer", "mobile_device"):
+            errors.append(ValidationError(i, f"type '{group_type}' is invalid — must be 'computer' or 'mobile_device'"))
+            continue
 
         source = _lookup_group(source_ref, group_type, token, session)
         target = _lookup_group(target_ref, group_type, token, session)

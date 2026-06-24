@@ -17,6 +17,19 @@ def _mock_response(status_code, text=""):
     return r
 
 
+FRESH_TARGET_XML = """<?xml version="1.0" encoding="UTF-8"?>
+<computer_group>
+    <id>2</id><name>New Group</name><is_smart>false</is_smart>
+    <computers><computer><id>103</id><name>Mac-03</name></computer></computers>
+</computer_group>"""
+
+EMPTY_TARGET_XML = """<?xml version="1.0" encoding="UTF-8"?>
+<computer_group>
+    <id>2</id><name>New Group</name><is_smart>false</is_smart>
+    <computers/>
+</computer_group>"""
+
+
 def _make_resolved(source_members, target_members, group_type="computer"):
     target_set = set(target_members)
     delta = [m for m in source_members if m not in target_set]
@@ -76,7 +89,8 @@ def test_execute_ok_adds_and_deletes():
     token = _make_token()
     session = MagicMock()
 
-    with patch("executor.classic_put", return_value=_mock_response(201)) as mock_put, \
+    with patch("executor.classic_get", return_value=_mock_response(200, FRESH_TARGET_XML)), \
+         patch("executor.classic_put", return_value=_mock_response(201)) as mock_put, \
          patch("executor.classic_delete", return_value=_mock_response(200)) as mock_del:
         results = executor.execute([rm], token, session)
 
@@ -93,7 +107,8 @@ def test_execute_fail_retries_put_once():
     token = _make_token()
     session = MagicMock()
 
-    with patch("executor.classic_put", return_value=_mock_response(500, "server error")) as mock_put, \
+    with patch("executor.classic_get", return_value=_mock_response(200, EMPTY_TARGET_XML)), \
+         patch("executor.classic_put", return_value=_mock_response(500, "server error")) as mock_put, \
          patch("executor.classic_delete") as mock_del:
         results = executor.execute([rm], token, session)
 
@@ -109,7 +124,8 @@ def test_execute_fail_on_delete_does_not_reraise():
     token = _make_token()
     session = MagicMock()
 
-    with patch("executor.classic_put", return_value=_mock_response(201)), \
+    with patch("executor.classic_get", return_value=_mock_response(200, EMPTY_TARGET_XML)), \
+         patch("executor.classic_put", return_value=_mock_response(201)), \
          patch("executor.classic_delete", return_value=_mock_response(500, "delete failed")):
         results = executor.execute([rm], token, session)
 
@@ -126,10 +142,12 @@ def test_execute_continues_after_fail():
     token = _make_token()
     session = MagicMock()
 
+    responses_get = [_mock_response(200, EMPTY_TARGET_XML), _mock_response(200, EMPTY_TARGET_XML)]
     responses_put = [_mock_response(500), _mock_response(500), _mock_response(201)]
     responses_del = [_mock_response(200)]
 
-    with patch("executor.classic_put", side_effect=responses_put), \
+    with patch("executor.classic_get", side_effect=responses_get), \
+         patch("executor.classic_put", side_effect=responses_put), \
          patch("executor.classic_delete", side_effect=responses_del):
         results = executor.execute([rm1, rm2], token, session)
 

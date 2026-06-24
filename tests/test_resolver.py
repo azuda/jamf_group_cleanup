@@ -1,5 +1,5 @@
 import resolver
-from resolver import MergeConfig, ResolvedMerge, ValidationError
+from resolver import ResolvedMerge, ValidationError
 
 
 COMPUTER_GROUP_XML = """<?xml version="1.0" encoding="UTF-8"?>
