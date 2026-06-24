@@ -114,3 +114,122 @@ def test_write_log_records_errors(tmp_path):
     reporter.write_log(results, log_path)
     content = open(log_path).read()
     assert "PUT 500" in content
+
+
+# ── scope reporter tests ──────────────────────────────────────────────────────
+import io
+import pytest
+from unittest.mock import patch
+from scope_resolver import ResolvedScope, ScopedObject
+from scope_executor import ScopeResult
+
+
+def _make_rs(objects=None):
+    return ResolvedScope(
+        source_id=1, source_name="Old Group",
+        target_id=2, target_name="New Group",
+        group_type="computer",
+        objects=objects or [],
+    )
+
+
+def _make_obj(object_type="policy", already=False):
+    return ScopedObject(
+        object_id=10, object_name="Deploy Software",
+        object_type=object_type, in_inclusions=True, in_exclusions=False,
+        target_already_present=already,
+    )
+
+
+# ── print_scope_dry_run ───────────────────────────────────────────────────────
+
+def test_dry_run_shows_header(capsys):
+    reporter.print_scope_dry_run([])
+    out = capsys.readouterr().out
+    assert "DRY RUN" in out
+
+
+def test_dry_run_counts_by_type(capsys):
+    policy_obj = _make_obj("policy")
+    profile_obj = _make_obj("osx_profile")
+    rs = _make_rs([policy_obj, profile_obj])
+    reporter.print_scope_dry_run([rs])
+    out = capsys.readouterr().out
+    assert "Old Group" in out
+    assert "New Group" in out
+    assert "1" in out  # count appears
+
+
+def test_dry_run_shows_already_has_target(capsys):
+    rs = _make_rs([_make_obj(already=True)])
+    reporter.print_scope_dry_run([rs])
+    out = capsys.readouterr().out
+    assert "Already has target" in out or "no-op" in out
+
+
+# ── print_scope_results ───────────────────────────────────────────────────────
+
+def test_scope_results_ok(capsys):
+    obj = _make_obj()
+    rs = _make_rs([obj])
+    result = ScopeResult(resolved=rs, status="OK", objects_updated=[obj])
+    reporter.print_scope_results([result])
+    out = capsys.readouterr().out
+    assert "[OK]" in out
+    assert "Old Group" in out
+    assert "1 object" in out or "1" in out
+
+
+def test_scope_results_skip(capsys):
+    rs = _make_rs([])
+    result = ScopeResult(resolved=rs, status="SKIP")
+    reporter.print_scope_results([result])
+    out = capsys.readouterr().out
+    assert "[SKIP]" in out
+
+
+def test_scope_results_fail(capsys):
+    rs = _make_rs([_make_obj()])
+    result = ScopeResult(resolved=rs, status="FAIL", error="PUT 500: error")
+    reporter.print_scope_results([result])
+    out = capsys.readouterr().out
+    assert "[FAIL]" in out
+    assert "PUT 500" in out
+
+
+def test_scope_results_summary(capsys):
+    rs = _make_rs()
+    results = [
+        ScopeResult(resolved=rs, status="OK", objects_updated=[]),
+        ScopeResult(resolved=rs, status="SKIP"),
+        ScopeResult(resolved=rs, status="FAIL", error="err"),
+    ]
+    reporter.print_scope_results(results)
+    out = capsys.readouterr().out
+    assert "1 succeeded" in out
+    assert "1 skipped" in out
+    assert "1 failed" in out
+
+
+# ── write_scope_log ───────────────────────────────────────────────────────────
+
+def test_write_scope_log_creates_file(tmp_path):
+    obj = _make_obj()
+    rs = _make_rs([obj])
+    result = ScopeResult(resolved=rs, status="OK", objects_updated=[obj])
+    log_path = str(tmp_path / "test.log")
+    reporter.write_scope_log([result], log_path)
+    content = open(log_path).read()
+    assert "OK" in content
+    assert "Old Group" in content
+    assert "Deploy Software" in content
+    assert "DEPRECATED" in content
+
+
+def test_write_scope_log_skip_no_deprecated(tmp_path):
+    rs = _make_rs([])
+    result = ScopeResult(resolved=rs, status="SKIP")
+    log_path = str(tmp_path / "test.log")
+    reporter.write_scope_log([result], log_path)
+    content = open(log_path).read()
+    assert "DEPRECATED" not in content
