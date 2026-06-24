@@ -20,8 +20,8 @@ mkdir -p "$SCRIPTS_DIR"
 
 echo "==> Cloning jamf_client"
 if [ -d "$JAMF_CLIENT_DIR/.git" ]; then
-  echo "    Already cloned, pulling latest"
-  git -C "$JAMF_CLIENT_DIR" pull
+	echo "    Already cloned, pulling latest"
+	git -C "$JAMF_CLIENT_DIR" pull
 else
 	git clone "$JAMF_CLIENT_REPO" "$JAMF_CLIENT_DIR"
 fi
