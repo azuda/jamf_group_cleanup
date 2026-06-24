@@ -33,6 +33,18 @@ CLIENT_ID=your-api-client-id
 CLIENT_SECRET=your-api-client-secret
 ```
 
+Credentials are stored encrypted at `../jamf_client/.env.age`. Decrypt to get your `.env`:
+
+```sh
+age --decrypt -o .env ../jamf_client/.env.age
+```
+
+`age` can be installed via Homebrew if needed:
+
+```sh
+brew install age
+```
+
 ## Config
 
 Copy `merge.yaml.example` to `merge.yaml` and define your merges:
