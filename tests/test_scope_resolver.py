@@ -236,3 +236,70 @@ def test_resolve_scope_no_matching_objects():
     assert errors == []
     assert len(resolved) == 1
     assert resolved[0].objects == []
+
+
+# ── mobile_device type scans apps ────────────────────────────────────────────
+
+MOBILE_SOURCE_GROUP_XML = """<?xml version="1.0" encoding="UTF-8"?>
+<mobile_device_group>
+    <id>1</id><name>Old iOS Group</name><is_smart>false</is_smart>
+    <mobile_devices/>
+</mobile_device_group>"""
+
+MOBILE_TARGET_GROUP_XML = """<?xml version="1.0" encoding="UTF-8"?>
+<mobile_device_group>
+    <id>2</id><name>New iOS Group</name><is_smart>false</is_smart>
+    <mobile_devices/>
+</mobile_device_group>"""
+
+MOBILE_PROFILE_LIST_EMPTY = """<?xml version="1.0" encoding="UTF-8"?>
+<configuration_profiles><size>0</size></configuration_profiles>"""
+
+MOBILE_APP_LIST_XML = """<?xml version="1.0" encoding="UTF-8"?>
+<mobile_device_applications>
+    <size>1</size>
+    <mobile_device_application><id>20</id><name>Toolbox</name></mobile_device_application>
+</mobile_device_applications>"""
+
+MOBILE_APP_WITH_SOURCE = """<?xml version="1.0" encoding="UTF-8"?>
+<mobile_device_application>
+    <general><id>20</id><name>Toolbox</name></general>
+    <scope>
+        <mobile_device_groups>
+            <mobile_device_group><id>1</id><name>Old iOS Group</name></mobile_device_group>
+        </mobile_device_groups>
+        <exclusions><mobile_device_groups/></exclusions>
+    </scope>
+</mobile_device_application>"""
+
+
+def test_scan_object_type_warns_on_list_failure(capsys):
+    from scope_resolver import _scan_object_type, OBJECT_TYPE_SPECS
+    spec = OBJECT_TYPE_SPECS["mobile_device"][1]  # mobile_app spec
+    with patch("scope_resolver.classic_get", return_value=_mock_response(401, "Unauthorized")):
+        result = _scan_object_type(spec, 1, 2, _make_token(), MagicMock())
+    assert result == []
+    assert "401" in capsys.readouterr().err
+
+
+def test_resolve_scope_mobile_device_scans_apps():
+    entries = [{"source": "Old iOS Group", "target": "New iOS Group", "type": "mobile_device"}]
+
+    with patch("scope_resolver.classic_get") as mock_get:
+        mock_get.side_effect = [
+            _mock_response(200, MOBILE_SOURCE_GROUP_XML),   # lookup source
+            _mock_response(200, MOBILE_TARGET_GROUP_XML),   # lookup target
+            _mock_response(200, MOBILE_PROFILE_LIST_EMPTY), # list mobile config profiles
+            _mock_response(200, MOBILE_APP_LIST_XML),       # list mobile apps
+            _mock_response(200, MOBILE_APP_WITH_SOURCE),    # app 20 detail
+        ]
+        resolved, errors = resolve_scope(entries, _make_token(), MagicMock())
+
+    assert errors == []
+    assert len(resolved) == 1
+    rs = resolved[0]
+    assert len(rs.objects) == 1
+    assert rs.objects[0].object_id == 20
+    assert rs.objects[0].object_type == "mobile_app"
+    assert rs.objects[0].in_inclusions is True
+    assert rs.objects[0].in_exclusions is False

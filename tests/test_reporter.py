@@ -160,6 +160,22 @@ def test_dry_run_counts_by_type(capsys):
     assert "1" in out  # count appears
 
 
+def test_dry_run_counts_mobile_apps(capsys):
+    rs = ResolvedScope(
+        source_id=1, source_name="Old iOS Group",
+        target_id=2, target_name="New iOS Group",
+        group_type="mobile_device",
+        objects=[
+            ScopedObject(object_id=20, object_name="Toolbox", object_type="mobile_app",
+                         in_inclusions=True, in_exclusions=False),
+        ],
+    )
+    reporter.print_scope_dry_run([rs])
+    out = capsys.readouterr().out
+    assert "mobile device apps" in out
+    assert "1" in out
+
+
 def test_dry_run_shows_already_has_target(capsys):
     rs = _make_rs([_make_obj(already=True)])
     reporter.print_scope_dry_run([rs])

@@ -54,6 +54,14 @@ OBJECT_TYPE_SPECS = {
             "include_path": "scope/mobile_device_groups/mobile_device_group",
             "exclude_path": "scope/exclusions/mobile_device_groups/mobile_device_group",
         },
+        {
+            "object_type": "mobile_app",
+            "list_path": "/JSSResource/mobiledeviceapps",
+            "list_tag": "mobile_device_application",
+            "detail_template": "/JSSResource/mobiledeviceapps/id/{}",
+            "include_path": "scope/mobile_device_groups/mobile_device_group",
+            "exclude_path": "scope/exclusions/mobile_device_groups/mobile_device_group",
+        },
     ],
 }
 
@@ -106,7 +114,13 @@ def _lookup_group(ref, group_type, token, session):
 
 def _scan_object_type(spec, source_id, target_id, token, session):
     list_response = classic_get(spec["list_path"], token, session)
-    list_response.raise_for_status()
+    if not list_response.ok:
+        print(
+            f"WARNING: could not list {spec['object_type']} "
+            f"({list_response.status_code}) — skipped (check API client permissions)",
+            file=sys.stderr,
+        )
+        return []
     ids = _parse_ids_from_list_xml(list_response.text, spec["list_tag"])
 
     objects = []

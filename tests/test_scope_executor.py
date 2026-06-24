@@ -132,6 +132,32 @@ def test_execute_scope_fail_retries_put():
     assert mock_put.call_count == 2
 
 
+def test_execute_scope_mobile_app_type():
+    obj = ScopedObject(object_id=20, object_name="Toolbox", object_type="mobile_app",
+                       in_inclusions=True, in_exclusions=False)
+    rs = ResolvedScope(
+        source_id=1, source_name="Old iOS Group",
+        target_id=2, target_name="New iOS Group",
+        group_type="mobile_device",
+        objects=[obj],
+    )
+    app_xml = """<?xml version="1.0" encoding="UTF-8"?>
+<mobile_device_application>
+    <general><id>20</id><name>Toolbox</name></general>
+    <scope>
+        <mobile_device_groups>
+            <mobile_device_group><id>1</id><name>Old iOS Group</name></mobile_device_group>
+        </mobile_device_groups>
+        <exclusions><mobile_device_groups/></exclusions>
+    </scope>
+</mobile_device_application>"""
+    with patch("scope_executor.classic_get", return_value=_mock_response(200, app_xml)), \
+         patch("scope_executor.classic_put", return_value=_mock_response(201)):
+        results = scope_executor.execute_scope([rs], _make_token(), MagicMock())
+    assert results[0].status == "OK"
+    assert results[0].objects_updated[0].object_id == 20
+
+
 def test_execute_scope_continues_after_fail():
     obj1 = ScopedObject(object_id=10, object_name="P1", object_type="policy",
                         in_inclusions=True, in_exclusions=False)

@@ -17,6 +17,7 @@ DETAIL_PATH_BY_TYPE = {
     "policy": "/JSSResource/policies/id/{}",
     "osx_profile": "/JSSResource/osxconfigurationprofiles/id/{}",
     "mobile_profile": "/JSSResource/mobiledeviceconfigurationprofiles/id/{}",
+    "mobile_app": "/JSSResource/mobiledeviceapps/id/{}",
 }
 
 INCLUDE_PATH_BY_GROUP_TYPE = {

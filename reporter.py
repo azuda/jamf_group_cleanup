@@ -53,7 +53,9 @@ def print_scope_dry_run(resolved_scopes):
             print(f"    computer policies:     {len(policies)} would be updated")
             print(f"    macOS config profiles: {len(osx)} would be updated")
         else:
+            apps = [o for o in rs.objects if o.object_type == "mobile_app" and not o.target_already_present]
             print(f"    mobile device profiles: {len(mobile)} would be updated")
+            print(f"    mobile device apps:     {len(apps)} would be updated")
 
         if noop:
             print(f"    Already has target:    {len(noop)} object(s) (no-op)")
