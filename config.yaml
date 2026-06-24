@@ -1,0 +1,4 @@
+scopes:
+  - source: 172
+    target: "test empty group"
+    type: mobile_device
