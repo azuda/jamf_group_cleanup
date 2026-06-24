@@ -1,19 +1,9 @@
 # jamf_group_cleanup
 
-Merges Jamf Pro groups. Adds all members from a source group into a target static group, then deletes the source. Supports both computer and mobile device groups (static or smart).
+Two subcommands for managing Jamf Pro group references:
 
-## What it does
-
-1. Reads a `merge.yaml` config listing source → target group pairs
-2. Resolves all group names/IDs via the Jamf Classic API and validates the config upfront:
-   - Both groups must exist
-   - Target must be a static group (smart groups can't have members added explicitly)
-   - Source and target can't be the same group
-3. In `--dry` mode: prints a plan showing what would be added/skipped — no API writes
-4. In normal mode: PUTs the merged member list to the target, then DELETEs the source
-   - If the source is a smart group, its current members are snapshotted and added
-   - Source group is only deleted if the PUT succeeded
-   - Failed merges are logged and skipped; subsequent entries still run
+- **`merge`** — adds all members from a source group into a target static group, then deletes the source
+- **`scope`** — replaces a source group with a target group in all policy and config profile scopes (does not delete the source group)
 
 ## Setup
 
@@ -47,7 +37,7 @@ brew install age
 
 ## Config
 
-Copy `merge.yaml.example` to `merge.yaml` and define your merges:
+Copy `config.yaml.example` to `config.yaml` and define your operations:
 
 ```yaml
 merges:
@@ -65,33 +55,48 @@ merges:
   - source: "Retired iPad Smart Group"
     target: "All Student iPads"
     type: mobile_device
+
+scopes:
+  # Replace source group with target in all policy/profile scopes (computers)
+  - source: "Old Staff Macs"
+    target: "All Staff Computers"
+    type: computer
+
+  # Replace source group in mobile device profile scopes
+  - source: "Old iPad Group"
+    target: "All Student iPads"
+    type: mobile_device
 ```
 
-**Fields:**
+**Fields (both `merges` and `scopes` entries):**
 
 | Field | Required | Description |
 |---|---|---|
-| `source` | yes | Group name (string) or Jamf ID (integer) to merge from and delete |
-| `target` | yes | Group name (string) or Jamf ID (integer) to merge into (must be static) |
+| `source` | yes | Group name (string) or Jamf ID (integer) |
+| `target` | yes | Group name (string) or Jamf ID (integer) |
 | `type` | yes | `computer` or `mobile_device` |
 
-> **Note:** Do not point two entries at the same target group in a single run — the second PUT will use a stale member snapshot and may produce unexpected results. Run them separately instead.
+`merge` and `scope` subcommands are independent — each reads only its own config section.
 
 ## Usage
 
 ```sh
-# Preview what would happen (no changes)
-./run.sh --dry
+# Merge subcommand
+./run.sh merge          # execute merges
+./run.sh merge --dry    # preview merges, no changes
 
-# Execute the merges
-./run.sh
+# Scope subcommand
+./run.sh scope          # replace group references in scopes
+./run.sh scope --dry    # preview scope changes, no changes
 ```
 
-Exits with a non-zero code if any merge fails.
+Both subcommands exit with a non-zero code if any entry fails.
 
 Logs are written to `logs/<timestamp>.log`. The last 8 logs are kept automatically.
 
 ## Output
+
+### merge
 
 ```
 [OK]   Old Staff Macs → All Staff Computers  (42 added, 3 already present)
@@ -106,6 +111,24 @@ Logs are written to `logs/<timestamp>.log`. The last 8 logs are kept automatical
 | `OK` | Members added to target, source deleted |
 | `SKIP` | Source had no new members; source not deleted |
 | `FAIL` | PUT or DELETE failed after retry; source not deleted |
+
+### scope
+
+```
+[OK]   Old Group → New Group  (4 objects updated)
+[SKIP] Old iPad Group → All iPads  (source group not found in any scope)
+[FAIL] Old Lab Group → New Lab Group  (PUT 'Deploy Xcode' 500: error — source not deleted)
+
+2 succeeded, 1 skipped, 0 failed
+```
+
+| Status | Meaning |
+|---|---|
+| `OK` | Source group replaced with target in all matching policy/profile scopes |
+| `SKIP` | Source group not found in any scope; no changes made |
+| `FAIL` | One or more PUT requests failed after retry; partially updated entries are not rolled back |
+
+> **Note:** The `scope` subcommand never deletes the source group. It only replaces references in policy/profile scopes.
 
 ## Tests
 

@@ -10,8 +10,13 @@ import yaml
 from jamf_client import get_token, invalidate_token, make_session
 
 from executor import execute
-from reporter import print_dry_run, print_results, write_log
+from reporter import (
+    print_dry_run, print_results, write_log,
+    print_scope_dry_run, print_scope_results, write_scope_log,
+)
 from resolver import resolve
+from scope_executor import execute_scope
+from scope_resolver import resolve_scope
 
 
 def _load_config():
@@ -59,8 +64,38 @@ def _cmd_merge(args):
 
 
 def _cmd_scope(args):
-    print("scope subcommand not yet implemented", file=sys.stderr)
-    sys.exit(1)
+    config = _load_config()
+    entries = config.get("scopes", [])
+    if not entries:
+        print("No scopes defined in config.yaml.", file=sys.stderr)
+        sys.exit(1)
+
+    access_token, expires_in = get_token()
+    token = {"t": access_token, "expiration": int(time.time()) + expires_in}
+    session = make_session()
+
+    try:
+        resolved, errors = resolve_scope(entries, token, session)
+        if errors:
+            for err in errors:
+                print(f"Error [entry {err.index + 1}]: {err.message}", file=sys.stderr)
+            sys.exit(1)
+
+        if args.dry:
+            print_scope_dry_run(resolved)
+            return
+
+        results = execute_scope(resolved, token, session)
+        print_scope_results(results)
+
+        log_path = os.environ.get("LOG_FILE")
+        if log_path:
+            write_scope_log(results, log_path)
+
+        if any(r.status == "FAIL" for r in results):
+            sys.exit(1)
+    finally:
+        invalidate_token(access_token)
 
 
 def main():
