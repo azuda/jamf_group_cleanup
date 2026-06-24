@@ -13,3 +13,14 @@ merges:
   - source: "Retired iPad Smart Group"
     target: "All Student iPads"
     type: mobile_device
+
+scopes:
+  # Replace source group with target in all policy/profile scopes (computers)
+  - source: "Old Staff Macs"
+    target: "All Staff Computers"
+    type: computer
+
+  # Replace source group in mobile device profile scopes
+  - source: "Old iPad Group"
+    target: "All Student iPads"
+    type: mobile_device
