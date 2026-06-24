@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+import sys
 import xml.etree.ElementTree as ET
 from urllib.parse import quote
 from api import classic_get
@@ -113,6 +114,11 @@ def _scan_object_type(spec, source_id, target_id, token, session):
         detail_path = spec["detail_template"].format(obj_id)
         detail_response = classic_get(detail_path, token, session)
         if not detail_response.ok:
+            print(
+                f"WARNING: could not scan {spec['object_type']} id={obj_id} "
+                f"({detail_response.status_code}) — skipped",
+                file=sys.stderr,
+            )
             continue
 
         in_inc, in_exc, target_present = _check_object_for_group(

@@ -103,7 +103,7 @@ Logs are written to `logs/<timestamp>.log`. The last 8 logs are kept automatical
 [SKIP] Retired iPad Pool → All Student iPads  (0 new members, source not deleted)
 [FAIL] Old Lab Macs → All Lab Computers       (PUT 500: internal server error)
 
-2 succeeded, 1 skipped, 1 failed
+1 succeeded, 1 skipped, 1 failed
 ```
 
 | Status | Meaning |
@@ -119,7 +119,7 @@ Logs are written to `logs/<timestamp>.log`. The last 8 logs are kept automatical
 [SKIP] Old iPad Group → All iPads  (source group not found in any scope)
 [FAIL] Old Lab Group → New Lab Group  (PUT 'Deploy Xcode' 500: error — source not deleted)
 
-2 succeeded, 1 skipped, 0 failed
+1 succeeded, 1 skipped, 1 failed
 ```
 
 | Status | Meaning |

@@ -69,7 +69,10 @@ def print_scope_results(results):
         if r.status == "OK":
             print(f"[OK]   {rs.source_name} → {rs.target_name}  ({n} object{'s' if n != 1 else ''} updated)")
         elif r.status == "SKIP":
-            print(f"[SKIP] {rs.source_name} → {rs.target_name}  (source group not found in any scope)")
+            if r.skip_reason == "all_noop":
+                print(f"[SKIP] {rs.source_name} → {rs.target_name}  (target group already present in all matching scopes)")
+            else:
+                print(f"[SKIP] {rs.source_name} → {rs.target_name}  (source group not found in any scope)")
         else:
             print(f"[FAIL] {rs.source_name} → {rs.target_name}  ({r.error})")
 
@@ -87,7 +90,7 @@ def write_scope_log(results, log_path):
             f.write(f"scope: status={r.status} source={rs.source_name}(id={rs.source_id}) target={rs.target_name}(id={rs.target_id}) type={rs.group_type}\n")
             for obj in r.objects_updated:
                 f.write(f"  updated: {obj.object_type} '{obj.object_name}' (id={obj.object_id})\n")
-            if r.status != "SKIP":
+            if r.objects_updated:
                 f.write(f"  DEPRECATED: '{rs.source_name}' (id={rs.source_id}) scope references replaced by '{rs.target_name}' (id={rs.target_id}) — group not deleted\n")
             if r.error:
                 f.write(f"  error={r.error}\n")

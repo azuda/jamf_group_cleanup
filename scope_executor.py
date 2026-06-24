@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 import xml.etree.ElementTree as ET
 from api import classic_get, classic_put
-from scope_resolver import ResolvedScope, ScopedObject
+from scope_resolver import ResolvedScope, ScopedObject, _check_object_for_group
 
 
 @dataclass
@@ -10,6 +10,7 @@ class ScopeResult:
     status: str
     objects_updated: list = field(default_factory=list)
     error: str | None = None
+    skip_reason: str = "not_found"  # "not_found" or "all_noop"
 
 
 DETAIL_PATH_BY_TYPE = {
@@ -54,7 +55,8 @@ def execute_scope(resolved_scopes, token, session):
     for rs in resolved_scopes:
         actionable = [obj for obj in rs.objects if not obj.target_already_present]
         if not actionable:
-            results.append(ScopeResult(resolved=rs, status="SKIP"))
+            reason = "all_noop" if rs.objects else "not_found"
+            results.append(ScopeResult(resolved=rs, status="SKIP", skip_reason=reason))
             continue
 
         include_path = INCLUDE_PATH_BY_GROUP_TYPE[rs.group_type]
@@ -72,9 +74,20 @@ def execute_scope(resolved_scopes, token, session):
                 fail_error = f"GET '{obj.object_name}' {get_response.status_code}: {get_response.text[:200]}"
                 continue
 
+            # re-check: if another admin already added the target, skip this object
+            fresh_inc, fresh_exc, fresh_target_present = _check_object_for_group(
+                get_response.text, rs.source_id, rs.target_id, include_path, exclude_path
+            )
+            if fresh_target_present:
+                continue  # no-op, don't PUT
+
+            # use fresh scope presence flags, not stale scan-time flags
+            obj_in_inc = fresh_inc
+            obj_in_exc = fresh_exc
+
             updated_xml = _replace_group_in_xml(
                 get_response.text, rs.source_id, rs.target_id, rs.target_name,
-                include_path, exclude_path, obj.in_inclusions, obj.in_exclusions,
+                include_path, exclude_path, obj_in_inc, obj_in_exc,
             )
 
             put_response = None
