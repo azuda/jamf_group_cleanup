@@ -46,11 +46,11 @@ ENV_FILE="$PROJECT_DIR/.env"
 
 if [ ! -f "$AGE_FILE" ]; then
 	echo "    WARNING: $AGE_FILE not found — copy it to $JAMF_CLIENT_DIR and then run:"
-	echo "      age --decrypt -o $ENV_FILE $AGE_FILE"
+	echo "      age -d -i ~/.age/jamf.txt -o $ENV_FILE $AGE_FILE"
 elif [ -f "$ENV_FILE" ]; then
 	echo "    .env already exists, skipping decryption"
 else
-	age --decrypt -o "$ENV_FILE" "$AGE_FILE"
+	age -d -i ~/.age/jamf.txt -o "$ENV_FILE" "$AGE_FILE"
 	echo "    .env written"
 fi
 
