@@ -1,8 +1,5 @@
 from dataclasses import dataclass, field
 import xml.etree.ElementTree as ET
-from urllib.parse import quote
-from api import classic_get
-from resolver import _lookup_group, ValidationError
 
 
 @dataclass
