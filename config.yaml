@@ -1,4 +1,4 @@
 scopes:
-  - source: 172
-    target: "test empty group"
-    type: mobile_device
+  - source: 346
+    target: "test group for cleanup util"
+    type: computer

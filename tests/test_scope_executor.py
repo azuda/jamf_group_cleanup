@@ -18,6 +18,17 @@ POLICY_XML = """<?xml version="1.0" encoding="UTF-8"?>
     </scope>
 </policy>"""
 
+POLICY_XML_AFTER = """<?xml version="1.0" encoding="UTF-8"?>
+<policy>
+    <general><id>10</id><name>Deploy Software</name></general>
+    <scope>
+        <computer_groups>
+            <computer_group><id>2</id><name>New Group</name></computer_group>
+        </computer_groups>
+        <exclusions><computer_groups/></exclusions>
+    </scope>
+</policy>"""
+
 POLICY_XML_EXCL = """<?xml version="1.0" encoding="UTF-8"?>
 <policy>
     <general><id>10</id><name>Deploy Software</name></general>
@@ -124,12 +135,44 @@ def test_execute_scope_skip_target_already_present():
 
 def test_execute_scope_fail_retries_put():
     rs = _make_rs([_make_obj()])
-    with patch("scope_executor.classic_get", return_value=_mock_response(200, POLICY_XML)), \
+    # PUT fails twice; verify GET returns source still in scope → true FAIL
+    get_responses = [_mock_response(200, POLICY_XML), _mock_response(200, POLICY_XML)]
+    with patch("scope_executor.classic_get", side_effect=get_responses), \
          patch("scope_executor.classic_put", return_value=_mock_response(500, "err")) as mock_put:
         results = scope_executor.execute_scope([rs], _make_token(), MagicMock())
 
     assert results[0].status == "FAIL"
     assert mock_put.call_count == 2
+
+
+def test_execute_scope_put_error_but_change_applied():
+    """PUT returns a non-2xx error but Jamf committed the scope change anyway."""
+    rs = _make_rs([_make_obj()])
+    get_responses = [
+        _mock_response(200, POLICY_XML),       # initial GET — source present
+        _mock_response(200, POLICY_XML_AFTER), # verify GET — source gone, change applied
+    ]
+    with patch("scope_executor.classic_get", side_effect=get_responses), \
+         patch("scope_executor.classic_put", return_value=_mock_response(409, "Problem with script")):
+        results = scope_executor.execute_scope([rs], _make_token(), MagicMock())
+
+    assert results[0].status == "OK"
+    assert len(results[0].objects_updated) == 1
+    assert results[0].objects_updated[0].object_id == 10
+
+
+def test_execute_scope_put_error_verify_get_fails():
+    """PUT fails and the verify GET also fails — treat as FAIL."""
+    rs = _make_rs([_make_obj()])
+    get_responses = [
+        _mock_response(200, POLICY_XML),  # initial GET
+        _mock_response(500, "err"),        # verify GET fails
+    ]
+    with patch("scope_executor.classic_get", side_effect=get_responses), \
+         patch("scope_executor.classic_put", return_value=_mock_response(409, "err")):
+        results = scope_executor.execute_scope([rs], _make_token(), MagicMock())
+
+    assert results[0].status == "FAIL"
 
 
 def test_execute_scope_mobile_app_type():
@@ -165,7 +208,12 @@ def test_execute_scope_continues_after_fail():
                         in_inclusions=True, in_exclusions=False)
     rs = _make_rs([obj1, obj2])
 
-    get_responses = [_mock_response(200, POLICY_XML), _mock_response(200, POLICY_XML)]
+    # obj1: initial GET, verify GET (source still present → true FAIL); obj2: initial GET
+    get_responses = [
+        _mock_response(200, POLICY_XML),  # obj1 initial GET
+        _mock_response(200, POLICY_XML),  # obj1 verify GET — source still there
+        _mock_response(200, POLICY_XML),  # obj2 initial GET
+    ]
     put_responses = [_mock_response(500), _mock_response(500), _mock_response(201)]
 
     with patch("scope_executor.classic_get", side_effect=get_responses), \

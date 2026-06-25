@@ -1,3 +1,4 @@
+import sys
 from dataclasses import dataclass, field
 import xml.etree.ElementTree as ET
 from api import classic_get, classic_put
@@ -98,6 +99,23 @@ def execute_scope(resolved_scopes, token, session):
                     break
 
             if not put_response.ok:
+                # Jamf sometimes commits the scope change but returns an error for an
+                # unrelated validation failure (e.g. a broken script reference). Re-GET
+                # to check whether the source group was actually replaced.
+                verify_response = classic_get(put_path, token, session)
+                if verify_response.ok:
+                    v_inc, v_exc, _ = _check_object_for_group(
+                        verify_response.text, rs.source_id, rs.target_id, include_path, exclude_path
+                    )
+                    if not v_inc and not v_exc:
+                        print(
+                            f"  WARNING: PUT '{obj.object_name}' returned {put_response.status_code} "
+                            f"but scope change applied — Jamf reported: {put_response.text[:120]}",
+                            file=sys.stderr,
+                        )
+                        objects_updated.append(obj)
+                        continue
+
                 failed = True
                 fail_error = f"PUT '{obj.object_name}' {put_response.status_code}: {put_response.text[:200]}"
             else:

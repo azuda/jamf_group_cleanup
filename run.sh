@@ -4,7 +4,7 @@ PROJECT="$PWD"
 VENV="$PROJECT/.venv/bin/python3"
 
 LOG_DIR="$PROJECT/logs"
-timestamp=$(date '+%Y%m%d %H%M')
+timestamp=$(date '+%Y%m%d_%H%M')
 export LOG_FILE="$LOG_DIR/$timestamp.log"
 
 mkdir -p "$LOG_DIR"

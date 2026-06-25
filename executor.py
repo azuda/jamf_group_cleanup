@@ -1,7 +1,10 @@
 import os
 from dataclasses import dataclass, field
 from api import classic_get, classic_put, classic_delete
+from pathlib import Path
 from resolver import _parse_group_xml
+
+DEBUG_DIR = f"{Path.cwd()}/debug"
 
 
 @dataclass
@@ -50,8 +53,8 @@ def execute(resolved_merges: list, token: dict, session) -> list:
             ))
             continue
 
-        os.makedirs("debug", exist_ok=True)
-        with open(f"debug/target_{rm.target_id}.xml", "w") as f:
+        os.makedirs(DEBUG_DIR, exist_ok=True)
+        with open(f"{DEBUG_DIR}/target_{rm.target_id}.xml", "w") as f:
             f.write(fresh_response.text)
 
         fresh_target = _parse_group_xml(fresh_response.text, rm.group_type)
