@@ -1,4 +1,30 @@
+merges:
+  # Merge a static computer group (by name) into another static computer group
+  - source: "Old Staff Macs"
+    target: "All Staff Computers"
+    type: computer
+
+  # Use a Jamf ID instead of a name (useful when names contain special characters)
+  - source: 4821
+    target: "All Student iPads"
+    type: mobile_device
+
+  # Smart groups are supported as source — members are snapshotted at run time
+  - source: "Retired iPad Smart Group"
+    target: "All Student iPads"
+    type: mobile_device
+
 scopes:
+  # Replace source group with target in all policy/profile scopes (computers)
+  - source: "Old Staff Macs"
+    target: "All Staff Computers"
+    type: computer
+
+  # Replace source group in mobile device profile scopes
+  - source: "Old iPad Group"
+    target: "All Student iPads"
+    type: mobile_device
+
   - source: 346
     target: "test group for cleanup util"
     type: computer
