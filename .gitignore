@@ -1,5 +1,4 @@
 .env
-merge.yaml
 logs/
 debug/
 __pycache__/
