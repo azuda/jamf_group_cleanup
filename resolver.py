@@ -26,7 +26,10 @@ class ValidationError:
 
 def _parse_group_xml(xml_text, group_type):
     root = ET.fromstring(xml_text)
-    group_id = int(root.findtext("id"))
+    raw_id = root.findtext("id")
+    if raw_id is None:
+        raise ValueError(f"<id> element missing from group XML (first 200 chars): {xml_text[:200]}")
+    group_id = int(raw_id)
     name = root.findtext("name")
     is_smart = root.findtext("is_smart") == "true"
 

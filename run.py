@@ -28,6 +28,13 @@ def _load_config():
         return yaml.safe_load(f) or {}
 
 
+def _init_auth():
+    access_token, expires_in = get_token()
+    token = {"t": access_token, "expiration": int(time.time()) + expires_in}
+    session = make_session()
+    return access_token, token, session
+
+
 def _cmd_merge(args):
     config = _load_config()
     entries = config.get("merges", [])
@@ -35,10 +42,7 @@ def _cmd_merge(args):
         print("No merges defined in config.yaml.", file=sys.stderr)
         sys.exit(1)
 
-    access_token, expires_in = get_token()
-    token = {"t": access_token, "expiration": int(time.time()) + expires_in}
-    session = make_session()
-
+    access_token, token, session = _init_auth()
     try:
         resolved, errors = resolve(entries, token, session)
         if errors:
@@ -70,10 +74,7 @@ def _cmd_scope(args):
         print("No scopes defined in config.yaml.", file=sys.stderr)
         sys.exit(1)
 
-    access_token, expires_in = get_token()
-    token = {"t": access_token, "expiration": int(time.time()) + expires_in}
-    session = make_session()
-
+    access_token, token, session = _init_auth()
     try:
         resolved, errors = resolve_scope(entries, token, session)
         if errors:

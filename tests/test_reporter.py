@@ -103,7 +103,8 @@ def test_write_log_contains_status(tmp_path):
     log_path = str(tmp_path / "test.log")
     results = [_make_result("OK", members_added=[101, 102])]
     reporter.write_log(results, log_path)
-    content = open(log_path).read()
+    with open(log_path) as f:
+        content = f.read()
     assert "OK" in content
     assert "Old Group" in content
 
@@ -112,14 +113,12 @@ def test_write_log_records_errors(tmp_path):
     log_path = str(tmp_path / "test.log")
     results = [_make_result("FAIL", error="PUT 500: oops")]
     reporter.write_log(results, log_path)
-    content = open(log_path).read()
+    with open(log_path) as f:
+        content = f.read()
     assert "PUT 500" in content
 
 
 # ── scope reporter tests ──────────────────────────────────────────────────────
-import io
-import pytest
-from unittest.mock import patch
 from scope_resolver import ResolvedScope, ScopedObject
 from scope_executor import ScopeResult
 
@@ -235,11 +234,12 @@ def test_write_scope_log_creates_file(tmp_path):
     result = ScopeResult(resolved=rs, status="OK", objects_updated=[obj])
     log_path = str(tmp_path / "test.log")
     reporter.write_scope_log([result], log_path)
-    content = open(log_path).read()
+    with open(log_path) as f:
+        content = f.read()
     assert "OK" in content
     assert "Old Group" in content
     assert "Deploy Software" in content
-    assert "DEPRECATED" in content
+    assert "NOTE" in content
 
 
 def test_write_scope_log_skip_no_deprecated(tmp_path):
@@ -247,5 +247,6 @@ def test_write_scope_log_skip_no_deprecated(tmp_path):
     result = ScopeResult(resolved=rs, status="SKIP")
     log_path = str(tmp_path / "test.log")
     reporter.write_scope_log([result], log_path)
-    content = open(log_path).read()
+    with open(log_path) as f:
+        content = f.read()
     assert "DEPRECATED" not in content

@@ -1,6 +1,11 @@
 import os
 
 
+def _open_log(log_path):
+    os.makedirs(os.path.dirname(os.path.abspath(log_path)), exist_ok=True)
+    return open(log_path, "w")
+
+
 def print_dry_run(resolved_merges):
     print("DRY RUN — no changes will be made\n")
     for i, rm in enumerate(resolved_merges, 1):
@@ -30,8 +35,7 @@ def print_results(results):
 
 
 def write_log(results, log_path):
-    os.makedirs(os.path.dirname(os.path.abspath(log_path)), exist_ok=True)
-    with open(log_path, "w") as f:
+    with _open_log(log_path) as f:
         for r in results:
             rm = r.resolved
             f.write(f"status={r.status} source={rm.source_name}(id={rm.source_id}) target={rm.target_name}(id={rm.target_id}) type={rm.group_type}\n")
@@ -44,15 +48,15 @@ def print_scope_dry_run(resolved_scopes):
     print("DRY RUN — no changes will be made\n")
     for i, rs in enumerate(resolved_scopes, 1):
         print(f"[{i}] {rs.source_name} ({rs.group_type}) → {rs.target_name}")
-        policies = [o for o in rs.objects if o.object_type == "policy" and not o.target_already_present]
-        osx = [o for o in rs.objects if o.object_type == "osx_profile" and not o.target_already_present]
-        mobile = [o for o in rs.objects if o.object_type == "mobile_profile" and not o.target_already_present]
         noop = [o for o in rs.objects if o.target_already_present]
 
         if rs.group_type == "computer":
+            policies = [o for o in rs.objects if o.object_type == "policy" and not o.target_already_present]
+            osx = [o for o in rs.objects if o.object_type == "osx_profile" and not o.target_already_present]
             print(f"    computer policies:     {len(policies)} would be updated")
             print(f"    macOS config profiles: {len(osx)} would be updated")
         else:
+            mobile = [o for o in rs.objects if o.object_type == "mobile_profile" and not o.target_already_present]
             apps = [o for o in rs.objects if o.object_type == "mobile_app" and not o.target_already_present]
             print(f"    mobile device profiles: {len(mobile)} would be updated")
             print(f"    mobile device apps:     {len(apps)} would be updated")
@@ -85,14 +89,13 @@ def print_scope_results(results):
 
 
 def write_scope_log(results, log_path):
-    os.makedirs(os.path.dirname(os.path.abspath(log_path)), exist_ok=True)
-    with open(log_path, "a") as f:
+    with _open_log(log_path) as f:
         for r in results:
             rs = r.resolved
             f.write(f"scope: status={r.status} source={rs.source_name}(id={rs.source_id}) target={rs.target_name}(id={rs.target_id}) type={rs.group_type}\n")
             for obj in r.objects_updated:
                 f.write(f"  updated: {obj.object_type} '{obj.object_name}' (id={obj.object_id})\n")
             if r.objects_updated:
-                f.write(f"  DEPRECATED: '{rs.source_name}' (id={rs.source_id}) scope references replaced by '{rs.target_name}' (id={rs.target_id}) — group not deleted\n")
+                f.write(f"  NOTE: '{rs.source_name}' (id={rs.source_id}) scope references replaced by '{rs.target_name}' (id={rs.target_id}) — group not deleted\n")
             if r.error:
                 f.write(f"  error={r.error}\n")

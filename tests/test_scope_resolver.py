@@ -1,7 +1,10 @@
 import xml.etree.ElementTree as ET
+from unittest.mock import MagicMock, patch
 from scope_resolver import (
     ScopedObject, ResolvedScope,
     _parse_ids_from_list_xml, _check_object_for_group,
+    _scan_object_type, OBJECT_TYPE_SPECS,
+    resolve_scope,
 )
 
 POLICY_LIST_XML = """<?xml version="1.0" encoding="UTF-8"?>
@@ -131,9 +134,6 @@ def test_check_source_not_present():
     assert already is False
 
 
-from unittest.mock import MagicMock, patch
-from scope_resolver import resolve_scope
-
 SOURCE_GROUP_XML = """<?xml version="1.0" encoding="UTF-8"?>
 <computer_group>
     <id>1</id><name>Old Group</name><is_smart>false</is_smart><computers/>
@@ -164,14 +164,17 @@ def _make_token():
 def test_resolve_scope_finds_matching_object():
     entries = [{"source": "Old Group", "target": "New Group", "type": "computer"}]
 
-    with patch("scope_resolver.classic_get") as mock_get:
-        mock_get.side_effect = [
-            _mock_response(200, SOURCE_GROUP_XML),        # lookup source
-            _mock_response(200, TARGET_GROUP_XML),        # lookup target
-            _mock_response(200, POLICY_LIST_XML),         # list policies
-            _mock_response(200, POLICY_SOURCE_IN_INCLUSION),  # policy 10 detail
-            _mock_response(200, POLICY_NO_SOURCE),        # policy 11 detail
-            _mock_response(200, OSX_PROFILE_LIST_EMPTY),  # list osx profiles
+    with patch("resolver.classic_get") as mock_lookup, \
+         patch("scope_resolver.classic_get") as mock_scan:
+        mock_lookup.side_effect = [
+            _mock_response(200, SOURCE_GROUP_XML),  # lookup source
+            _mock_response(200, TARGET_GROUP_XML),  # lookup target
+        ]
+        mock_scan.side_effect = [
+            _mock_response(200, POLICY_LIST_XML),                # list policies
+            _mock_response(200, POLICY_SOURCE_IN_INCLUSION),     # policy 10 detail
+            _mock_response(200, POLICY_NO_SOURCE),               # policy 11 detail
+            _mock_response(200, OSX_PROFILE_LIST_EMPTY),         # list osx profiles
         ]
         resolved, errors = resolve_scope(entries, _make_token(), MagicMock())
 
@@ -193,10 +196,10 @@ def test_resolve_scope_finds_matching_object():
 def test_resolve_scope_source_not_found():
     entries = [{"source": "Ghost Group", "target": "New Group", "type": "computer"}]
 
-    with patch("scope_resolver.classic_get") as mock_get:
-        mock_get.side_effect = [
-            _mock_response(404),                   # lookup source → not found
-            _mock_response(200, TARGET_GROUP_XML), # lookup target
+    with patch("resolver.classic_get") as mock_lookup:
+        mock_lookup.side_effect = [
+            _mock_response(404),                    # lookup source → not found
+            _mock_response(200, TARGET_GROUP_XML),  # lookup target
         ]
         resolved, errors = resolve_scope(entries, _make_token(), MagicMock())
 
@@ -222,10 +225,13 @@ def test_resolve_scope_missing_fields():
 def test_resolve_scope_no_matching_objects():
     entries = [{"source": "Old Group", "target": "New Group", "type": "computer"}]
 
-    with patch("scope_resolver.classic_get") as mock_get:
-        mock_get.side_effect = [
+    with patch("resolver.classic_get") as mock_lookup, \
+         patch("scope_resolver.classic_get") as mock_scan:
+        mock_lookup.side_effect = [
             _mock_response(200, SOURCE_GROUP_XML),
             _mock_response(200, TARGET_GROUP_XML),
+        ]
+        mock_scan.side_effect = [
             _mock_response(200, POLICY_LIST_XML),
             _mock_response(200, POLICY_NO_SOURCE),    # policy 10: no source
             _mock_response(200, POLICY_NO_SOURCE),    # policy 11: no source
@@ -274,7 +280,6 @@ MOBILE_APP_WITH_SOURCE = """<?xml version="1.0" encoding="UTF-8"?>
 
 
 def test_scan_object_type_warns_on_list_failure(capsys):
-    from scope_resolver import _scan_object_type, OBJECT_TYPE_SPECS
     spec = OBJECT_TYPE_SPECS["mobile_device"][1]  # mobile_app spec
     with patch("scope_resolver.classic_get", return_value=_mock_response(401, "Unauthorized")):
         result = _scan_object_type(spec, 1, 2, _make_token(), MagicMock())
@@ -285,13 +290,16 @@ def test_scan_object_type_warns_on_list_failure(capsys):
 def test_resolve_scope_mobile_device_scans_apps():
     entries = [{"source": "Old iOS Group", "target": "New iOS Group", "type": "mobile_device"}]
 
-    with patch("scope_resolver.classic_get") as mock_get:
-        mock_get.side_effect = [
-            _mock_response(200, MOBILE_SOURCE_GROUP_XML),   # lookup source
-            _mock_response(200, MOBILE_TARGET_GROUP_XML),   # lookup target
+    with patch("resolver.classic_get") as mock_lookup, \
+         patch("scope_resolver.classic_get") as mock_scan:
+        mock_lookup.side_effect = [
+            _mock_response(200, MOBILE_SOURCE_GROUP_XML),  # lookup source
+            _mock_response(200, MOBILE_TARGET_GROUP_XML),  # lookup target
+        ]
+        mock_scan.side_effect = [
             _mock_response(200, MOBILE_PROFILE_LIST_EMPTY), # list mobile config profiles
-            _mock_response(200, MOBILE_APP_LIST_XML),       # list mobile apps
-            _mock_response(200, MOBILE_APP_WITH_SOURCE),    # app 20 detail
+            _mock_response(200, MOBILE_APP_LIST_XML),        # list mobile apps
+            _mock_response(200, MOBILE_APP_WITH_SOURCE),     # app 20 detail
         ]
         resolved, errors = resolve_scope(entries, _make_token(), MagicMock())
 

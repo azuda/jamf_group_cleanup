@@ -1,9 +1,8 @@
 from dataclasses import dataclass, field
 import sys
 import xml.etree.ElementTree as ET
-from urllib.parse import quote
 from api import classic_get
-from resolver import _parse_group_xml, ValidationError
+from resolver import _parse_group_xml, _lookup_group, ValidationError
 
 
 @dataclass
@@ -71,8 +70,11 @@ def _parse_ids_from_list_xml(xml_text, item_tag):
     return [int(el.findtext("id")) for el in root.findall(item_tag)]
 
 
-def _check_object_for_group(xml_text, source_id, target_id, include_path, exclude_path):
-    root = ET.fromstring(xml_text)
+def _check_object_for_group(xml_text_or_root, source_id, target_id, include_path, exclude_path):
+    if isinstance(xml_text_or_root, str):
+        root = ET.fromstring(xml_text_or_root)
+    else:
+        root = xml_text_or_root
     in_inc = False
     in_exc = False
     target_present = False
@@ -92,24 +94,6 @@ def _check_object_for_group(xml_text, source_id, target_id, include_path, exclud
             target_present = True
 
     return in_inc, in_exc, target_present
-
-
-def _lookup_group(ref, group_type, token, session):
-    if group_type == "computer":
-        base = "/JSSResource/computergroups"
-    else:
-        base = "/JSSResource/mobiledevicegroups"
-
-    if isinstance(ref, int):
-        path = f"{base}/id/{ref}"
-    else:
-        path = f"{base}/name/{quote(str(ref), safe='')}"
-
-    response = classic_get(path, token, session)
-    if response.status_code == 404:
-        return None
-    response.raise_for_status()
-    return _parse_group_xml(response.text, group_type)
 
 
 def _scan_object_type(spec, source_id, target_id, token, session):
@@ -135,17 +119,16 @@ def _scan_object_type(spec, source_id, target_id, token, session):
             )
             continue
 
+        root = ET.fromstring(detail_response.text)
         in_inc, in_exc, target_present = _check_object_for_group(
-            detail_response.text, source_id, target_id,
+            root, source_id, target_id,
             spec["include_path"], spec["exclude_path"],
         )
 
         if not in_inc and not in_exc:
             continue
 
-        root = ET.fromstring(detail_response.text)
         obj_name = root.findtext("general/name") or root.findtext("name") or ""
-
         objects.append(ScopedObject(
             object_id=obj_id,
             object_name=obj_name,

@@ -7,11 +7,11 @@ from scope_resolver import ResolvedScope, ScopedObject, _check_object_for_group
 
 @dataclass
 class ScopeResult:
-    resolved: object
+    resolved: ResolvedScope
     status: str
     objects_updated: list = field(default_factory=list)
     error: str | None = None
-    skip_reason: str = "not_found"  # "not_found" or "all_noop"
+    skip_reason: str | None = None
 
 
 DETAIL_PATH_BY_TYPE = {
@@ -65,7 +65,7 @@ def execute_scope(resolved_scopes, token, session):
         exclude_path = EXCLUDE_PATH_BY_GROUP_TYPE[rs.group_type]
         objects_updated = []
         failed = False
-        fail_error = None
+        fail_errors = []
 
         for obj in actionable:
             put_path = DETAIL_PATH_BY_TYPE[obj.object_type].format(obj.object_id)
@@ -73,7 +73,7 @@ def execute_scope(resolved_scopes, token, session):
             get_response = classic_get(put_path, token, session)
             if not get_response.ok:
                 failed = True
-                fail_error = f"GET '{obj.object_name}' {get_response.status_code}: {get_response.text[:200]}"
+                fail_errors.append(f"GET '{obj.object_name}' {get_response.status_code}: {get_response.text[:200]}")
                 continue
 
             # re-check: if another admin already added the target, skip this object
@@ -83,13 +83,9 @@ def execute_scope(resolved_scopes, token, session):
             if fresh_target_present:
                 continue  # no-op, don't PUT
 
-            # use fresh scope presence flags, not stale scan-time flags
-            obj_in_inc = fresh_inc
-            obj_in_exc = fresh_exc
-
             updated_xml = _replace_group_in_xml(
                 get_response.text, rs.source_id, rs.target_id, rs.target_name,
-                include_path, exclude_path, obj_in_inc, obj_in_exc,
+                include_path, exclude_path, fresh_inc, fresh_exc,
             )
 
             put_response = None
@@ -117,14 +113,14 @@ def execute_scope(resolved_scopes, token, session):
                         continue
 
                 failed = True
-                fail_error = f"PUT '{obj.object_name}' {put_response.status_code}: {put_response.text[:200]}"
+                fail_errors.append(f"PUT '{obj.object_name}' {put_response.status_code}: {put_response.text[:200]}")
             else:
                 objects_updated.append(obj)
 
         if failed:
             results.append(ScopeResult(
                 resolved=rs, status="FAIL",
-                objects_updated=objects_updated, error=fail_error,
+                objects_updated=objects_updated, error="; ".join(fail_errors),
             ))
         else:
             results.append(ScopeResult(resolved=rs, status="OK", objects_updated=objects_updated))

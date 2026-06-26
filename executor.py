@@ -2,14 +2,15 @@ import os
 from dataclasses import dataclass, field
 from api import classic_get, classic_put, classic_delete
 from pathlib import Path
-from resolver import _parse_group_xml
+from resolver import _parse_group_xml, ResolvedMerge
 
-DEBUG_DIR = f"{Path.cwd()}/debug"
+_DEBUG = os.environ.get("JAMF_DEBUG") == "1"
+DEBUG_DIR = Path(__file__).parent / "debug"
 
 
 @dataclass
 class MergeResult:
-    resolved: object
+    resolved: ResolvedMerge
     status: str
     members_added: list = field(default_factory=list)
     error: str | None = None
@@ -52,10 +53,10 @@ def execute(resolved_merges: list, token: dict, session) -> list:
                 error=f"GET target {fresh_response.status_code}: {fresh_response.text[:200]}",
             ))
             continue
-
-        os.makedirs(DEBUG_DIR, exist_ok=True)
-        with open(f"{DEBUG_DIR}/target_{rm.target_id}.xml", "w") as f:
-            f.write(fresh_response.text)
+        
+        if _DEBUG:
+            DEBUG_DIR.mkdir(exist_ok=True)
+            (DEBUG_DIR / f"target_{rm.target_id}.xml").write_text(fresh_response.text)
 
         fresh_target = _parse_group_xml(fresh_response.text, rm.group_type)
         fresh_target_members = fresh_target["members"]
