@@ -33,16 +33,6 @@ class ResolvedScope:
   smart_groups: list = field(default_factory=list)
 
 
-SMART_GROUP_LIST_PATH = {
-  "computer": "/JSSResource/computergroups",
-  "mobile_device": "/JSSResource/mobiledevicegroups",
-}
-
-SMART_CRITERION_NAME = {
-  "computer": "Computer Group",
-  "mobile_device": "Mobile Device Group",
-}
-
 OBJECT_TYPE_SPECS = {
   "computer": [
     {
@@ -80,6 +70,16 @@ OBJECT_TYPE_SPECS = {
       "exclude_path": "scope/exclusions/mobile_device_groups/mobile_device_group",
     },
   ],
+}
+
+SMART_GROUP_LIST_PATH = {
+  "computer": "/JSSResource/computergroups",
+  "mobile_device": "/JSSResource/mobiledevicegroups",
+}
+
+SMART_CRITERION_NAME = {
+  "computer": "Computer Group",
+  "mobile_device": "Mobile Device Group",
 }
 
 
