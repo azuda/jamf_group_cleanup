@@ -10,6 +10,7 @@ class ScopeResult:
   resolved: ResolvedScope
   status: str
   objects_updated: list = field(default_factory=list)
+  smart_groups_updated: list = field(default_factory=list)
   error: str | None = None
   skip_reason: str | None = None
 

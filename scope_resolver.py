@@ -16,6 +16,13 @@ class ScopedObject:
 
 
 @dataclass
+class SmartGroupCriterionRef:
+  group_id: int
+  group_name: str
+  target_already_present: bool = False
+
+
+@dataclass
 class ResolvedScope:
   source_id: int
   source_name: str
@@ -23,6 +30,7 @@ class ResolvedScope:
   target_name: str
   group_type: str            # "computer" or "mobile_device"
   objects: list = field(default_factory=list)
+  smart_groups: list = field(default_factory=list)
 
 
 OBJECT_TYPE_SPECS = {
