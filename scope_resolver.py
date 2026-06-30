@@ -33,6 +33,16 @@ class ResolvedScope:
   smart_groups: list = field(default_factory=list)
 
 
+SMART_GROUP_LIST_PATH = {
+  "computer": "/JSSResource/computergroups",
+  "mobile_device": "/JSSResource/mobiledevicegroups",
+}
+
+SMART_CRITERION_NAME = {
+  "computer": "Computer Group",
+  "mobile_device": "Mobile Device Group",
+}
+
 OBJECT_TYPE_SPECS = {
   "computer": [
     {
@@ -149,6 +159,66 @@ def _scan_object_type(spec, source_id, target_id, token, session):
   return objects
 
 
+def _scan_smart_groups(source_name, target_name, group_type, token, session):
+  list_response = classic_get(SMART_GROUP_LIST_PATH[group_type], token, session)
+  if not list_response.ok:
+    print(
+      f"WARNING: could not list smart {group_type} groups "
+      f"({list_response.status_code}) — skipped",
+      file=sys.stderr,
+    )
+    return []
+
+  root = ET.fromstring(list_response.text)
+  tag = "computer_group" if group_type == "computer" else "mobile_device_group"
+  detail_base = SMART_GROUP_LIST_PATH[group_type] + "/id/{}"
+  criterion_name = SMART_CRITERION_NAME[group_type]
+
+  results = []
+  for el in root.findall(tag):
+    is_smart_text = el.findtext("is_smart")
+    if is_smart_text == "false":
+      continue
+    gid = int(el.findtext("id"))
+
+    detail_response = classic_get(detail_base.format(gid), token, session)
+    if not detail_response.ok:
+      print(
+        f"WARNING: could not fetch smart group id={gid} "
+        f"({detail_response.status_code}) — skipped",
+        file=sys.stderr,
+      )
+      continue
+
+    detail_root = ET.fromstring(detail_response.text)
+
+    # fall back to detail for is_smart when absent from list
+    if is_smart_text is None and detail_root.findtext("is_smart") == "false":
+      continue
+
+    group_name = detail_root.findtext("name") or ""
+    source_found = False
+    target_found = False
+
+    for criterion in detail_root.findall("criteria/criterion"):
+      cname = criterion.findtext("name")
+      cvalue = criterion.findtext("value")
+      if cname == criterion_name:
+        if cvalue == source_name:
+          source_found = True
+        elif cvalue == target_name:
+          target_found = True
+
+    if source_found:
+      results.append(SmartGroupCriterionRef(
+        group_id=gid,
+        group_name=group_name,
+        target_already_present=target_found,
+      ))
+
+  return results
+
+
 def resolve_scope(entries, token, session):
   resolved = []
   errors = []
@@ -186,6 +256,8 @@ def resolve_scope(entries, token, session):
     for spec in OBJECT_TYPE_SPECS[group_type]:
       all_objects.extend(_scan_object_type(spec, source["id"], target["id"], token, session))
 
+    smart_groups = _scan_smart_groups(source["name"], target["name"], group_type, token, session)
+
     resolved.append(ResolvedScope(
       source_id=source["id"],
       source_name=source["name"],
@@ -193,6 +265,7 @@ def resolve_scope(entries, token, session):
       target_name=target["name"],
       group_type=group_type,
       objects=all_objects,
+      smart_groups=smart_groups,
     ))
 
   return resolved, errors

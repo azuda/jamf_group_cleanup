@@ -147,6 +147,12 @@ TARGET_GROUP_XML = """<?xml version="1.0" encoding="UTF-8"?>
 OSX_PROFILE_LIST_EMPTY = """<?xml version="1.0" encoding="UTF-8"?>
 <os_x_configuration_profiles><size>0</size></os_x_configuration_profiles>"""
 
+COMPUTER_GROUP_LIST_EMPTY = """<?xml version="1.0" encoding="UTF-8"?>
+<computer_groups/>"""
+
+MOBILE_DEVICE_GROUP_LIST_EMPTY = """<?xml version="1.0" encoding="UTF-8"?>
+<mobile_device_groups/>"""
+
 
 def _mock_response(status_code, text=""):
   r = MagicMock()
@@ -175,6 +181,7 @@ def test_resolve_scope_finds_matching_object():
       _mock_response(200, POLICY_SOURCE_IN_INCLUSION),     # policy 10 detail
       _mock_response(200, POLICY_NO_SOURCE),               # policy 11 detail
       _mock_response(200, OSX_PROFILE_LIST_EMPTY),         # list osx profiles
+      _mock_response(200, COMPUTER_GROUP_LIST_EMPTY),      # list smart computer groups
     ]
     resolved, errors = resolve_scope(entries, _make_token(), MagicMock())
 
@@ -236,6 +243,7 @@ def test_resolve_scope_no_matching_objects():
       _mock_response(200, POLICY_NO_SOURCE),    # policy 10: no source
       _mock_response(200, POLICY_NO_SOURCE),    # policy 11: no source
       _mock_response(200, OSX_PROFILE_LIST_EMPTY),
+      _mock_response(200, COMPUTER_GROUP_LIST_EMPTY),  # list smart computer groups
     ]
     resolved, errors = resolve_scope(entries, _make_token(), MagicMock())
 
@@ -297,9 +305,10 @@ def test_resolve_scope_mobile_device_scans_apps():
       _mock_response(200, MOBILE_TARGET_GROUP_XML),  # lookup target
     ]
     mock_scan.side_effect = [
-      _mock_response(200, MOBILE_PROFILE_LIST_EMPTY),  # list mobile config profiles
-      _mock_response(200, MOBILE_APP_LIST_XML),         # list mobile apps
-      _mock_response(200, MOBILE_APP_WITH_SOURCE),      # app 20 detail
+      _mock_response(200, MOBILE_PROFILE_LIST_EMPTY),      # list mobile config profiles
+      _mock_response(200, MOBILE_APP_LIST_XML),             # list mobile apps
+      _mock_response(200, MOBILE_APP_WITH_SOURCE),          # app 20 detail
+      _mock_response(200, MOBILE_DEVICE_GROUP_LIST_EMPTY),  # list smart mobile device groups
     ]
     resolved, errors = resolve_scope(entries, _make_token(), MagicMock())
 
