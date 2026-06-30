@@ -7,7 +7,7 @@ import sys
 import time
 
 import yaml
-from jamf_client import get_token, invalidate_token, make_session
+from jamf_client import init, get_token, invalidate_token, make_session
 
 from executor import execute
 from reporter import (
@@ -29,6 +29,7 @@ def _load_config():
 
 
 def _init_auth():
+  init()
   access_token, expires_in = get_token()
   token = {"t": access_token, "expiration": int(time.time()) + expires_in}
   session = make_session()

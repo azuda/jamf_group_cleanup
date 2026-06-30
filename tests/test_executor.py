@@ -90,7 +90,7 @@ def test_execute_ok_adds_and_deletes():
     session = MagicMock()
 
     with patch("executor.classic_get", return_value=_mock_response(200, FRESH_TARGET_XML)), \
-         patch("executor.classic_put", return_value=_mock_response(201)) as mock_put, \
+         patch("executor.put_with_retry", return_value=_mock_response(201)) as mock_put, \
          patch("executor.classic_delete", return_value=_mock_response(200)) as mock_del:
         results = executor.execute([rm], token, session)
 
@@ -108,12 +108,12 @@ def test_execute_fail_retries_put_once():
     session = MagicMock()
 
     with patch("executor.classic_get", return_value=_mock_response(200, EMPTY_TARGET_XML)), \
-         patch("executor.classic_put", return_value=_mock_response(500, "server error")) as mock_put, \
+         patch("api.classic_put", return_value=_mock_response(500, "server error")) as mock_put, \
          patch("executor.classic_delete") as mock_del:
         results = executor.execute([rm], token, session)
 
     assert results[0].status == "FAIL"
-    assert mock_put.call_count == 2  # initial + 1 retry
+    assert mock_put.call_count == 2  # initial + 1 retry inside put_with_retry
     mock_del.assert_not_called()
 
 
@@ -125,7 +125,7 @@ def test_execute_fail_on_delete_does_not_reraise():
     session = MagicMock()
 
     with patch("executor.classic_get", return_value=_mock_response(200, EMPTY_TARGET_XML)), \
-         patch("executor.classic_put", return_value=_mock_response(201)), \
+         patch("executor.put_with_retry", return_value=_mock_response(201)), \
          patch("executor.classic_delete", return_value=_mock_response(500, "delete failed")):
         results = executor.execute([rm], token, session)
 
@@ -147,7 +147,7 @@ def test_execute_continues_after_fail():
     responses_del = [_mock_response(200)]
 
     with patch("executor.classic_get", side_effect=responses_get), \
-         patch("executor.classic_put", side_effect=responses_put), \
+         patch("api.classic_put", side_effect=responses_put), \
          patch("executor.classic_delete", side_effect=responses_del):
         results = executor.execute([rm1, rm2], token, session)
 

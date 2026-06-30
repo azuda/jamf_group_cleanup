@@ -11,8 +11,8 @@ def test_classic_get_sets_bearer_header():
     session.get.return_value = MagicMock(status_code=200)
     token = _make_token()
 
-    with patch("api.JAMF_URL", "https://jamf.example.com"):
-        with patch("api.check_token_expiration", return_value=("test-token", 9999999999)):
+    with patch("jamf_client.JAMF_URL", "https://jamf.example.com"):
+        with patch("jamf_client.check_token_expiration", return_value=("test-token", 9999999999)):
             api.classic_get("/JSSResource/computergroups/id/1", token, session)
 
     call_kwargs = session.get.call_args
@@ -28,8 +28,8 @@ def test_classic_put_sends_xml_body():
     token = _make_token()
     xml = "<computer_group><computers></computers></computer_group>"
 
-    with patch("api.JAMF_URL", "https://jamf.example.com"):
-        with patch("api.check_token_expiration", return_value=("test-token", 9999999999)):
+    with patch("jamf_client.JAMF_URL", "https://jamf.example.com"):
+        with patch("jamf_client.check_token_expiration", return_value=("test-token", 9999999999)):
             api.classic_put("/JSSResource/computergroups/id/1", xml, token, session)
 
     call_kwargs = session.put.call_args
@@ -43,8 +43,8 @@ def test_classic_delete_sends_delete():
     session.delete.return_value = MagicMock(status_code=200)
     token = _make_token()
 
-    with patch("api.JAMF_URL", "https://jamf.example.com"):
-        with patch("api.check_token_expiration", return_value=("test-token", 9999999999)):
+    with patch("jamf_client.JAMF_URL", "https://jamf.example.com"):
+        with patch("jamf_client.check_token_expiration", return_value=("test-token", 9999999999)):
             api.classic_delete("/JSSResource/computergroups/id/1", token, session)
 
     assert session.delete.called

@@ -1,14 +1,14 @@
-from jamf_client import JAMF_URL, check_token_expiration
+import jamf_client
 
 
 def _refresh(token):
-  token["t"], token["expiration"] = check_token_expiration(token["t"], token["expiration"])
+  token["t"], token["expiration"] = jamf_client.check_token_expiration(token["t"], token["expiration"])
 
 
 def classic_get(path, token, session):
   _refresh(token)
   return session.get(
-    f"{JAMF_URL}{path}",
+    f"{jamf_client.JAMF_URL}{path}",
     headers={
       "Accept": "application/xml",
       "Authorization": f"Bearer {token['t']}",
@@ -19,7 +19,7 @@ def classic_get(path, token, session):
 def classic_put(path, xml_body, token, session):
   _refresh(token)
   return session.put(
-    f"{JAMF_URL}{path}",
+    f"{jamf_client.JAMF_URL}{path}",
     headers={
       "Accept": "application/xml",
       "Content-Type": "application/xml",
@@ -32,7 +32,7 @@ def classic_put(path, xml_body, token, session):
 def classic_delete(path, token, session):
   _refresh(token)
   return session.delete(
-    f"{JAMF_URL}{path}",
+    f"{jamf_client.JAMF_URL}{path}",
     headers={
       "Authorization": f"Bearer {token['t']}",
     },

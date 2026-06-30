@@ -111,7 +111,7 @@ def test_replace_preserves_other_elements():
 def test_execute_scope_ok():
     rs = _make_rs([_make_obj()])
     with patch("scope_executor.classic_get", return_value=_mock_response(200, POLICY_XML)), \
-         patch("scope_executor.classic_put", return_value=_mock_response(201)):
+         patch("scope_executor.put_with_retry", return_value=_mock_response(201)):
         results = scope_executor.execute_scope([rs], _make_token(), MagicMock())
 
     assert results[0].status == "OK"
@@ -127,7 +127,7 @@ def test_execute_scope_skip_no_objects():
 
 def test_execute_scope_skip_target_already_present():
     rs = _make_rs([_make_obj(already=True)])
-    with patch("scope_executor.classic_put") as mock_put:
+    with patch("scope_executor.put_with_retry") as mock_put:
         results = scope_executor.execute_scope([rs], _make_token(), MagicMock())
     mock_put.assert_not_called()
     assert results[0].status == "SKIP"
@@ -138,7 +138,7 @@ def test_execute_scope_fail_retries_put():
     # PUT fails twice; verify GET returns source still in scope → true FAIL
     get_responses = [_mock_response(200, POLICY_XML), _mock_response(200, POLICY_XML)]
     with patch("scope_executor.classic_get", side_effect=get_responses), \
-         patch("scope_executor.classic_put", return_value=_mock_response(500, "err")) as mock_put:
+         patch("api.classic_put", return_value=_mock_response(500, "err")) as mock_put:
         results = scope_executor.execute_scope([rs], _make_token(), MagicMock())
 
     assert results[0].status == "FAIL"
@@ -153,7 +153,7 @@ def test_execute_scope_put_error_but_change_applied():
         _mock_response(200, POLICY_XML_AFTER), # verify GET — source gone, change applied
     ]
     with patch("scope_executor.classic_get", side_effect=get_responses), \
-         patch("scope_executor.classic_put", return_value=_mock_response(409, "Problem with script")):
+         patch("scope_executor.put_with_retry", return_value=_mock_response(409, "Problem with script")):
         results = scope_executor.execute_scope([rs], _make_token(), MagicMock())
 
     assert results[0].status == "OK"
@@ -169,7 +169,7 @@ def test_execute_scope_put_error_verify_get_fails():
         _mock_response(500, "err"),        # verify GET fails
     ]
     with patch("scope_executor.classic_get", side_effect=get_responses), \
-         patch("scope_executor.classic_put", return_value=_mock_response(409, "err")):
+         patch("scope_executor.put_with_retry", return_value=_mock_response(409, "err")):
         results = scope_executor.execute_scope([rs], _make_token(), MagicMock())
 
     assert results[0].status == "FAIL"
@@ -195,7 +195,7 @@ def test_execute_scope_mobile_app_type():
     </scope>
 </mobile_device_application>"""
     with patch("scope_executor.classic_get", return_value=_mock_response(200, app_xml)), \
-         patch("scope_executor.classic_put", return_value=_mock_response(201)):
+         patch("scope_executor.put_with_retry", return_value=_mock_response(201)):
         results = scope_executor.execute_scope([rs], _make_token(), MagicMock())
     assert results[0].status == "OK"
     assert results[0].objects_updated[0].object_id == 20
@@ -217,7 +217,7 @@ def test_execute_scope_continues_after_fail():
     put_responses = [_mock_response(500), _mock_response(500), _mock_response(201)]
 
     with patch("scope_executor.classic_get", side_effect=get_responses), \
-         patch("scope_executor.classic_put", side_effect=put_responses):
+         patch("api.classic_put", side_effect=put_responses):
         results = scope_executor.execute_scope([rs], _make_token(), MagicMock())
 
     assert results[0].status == "FAIL"
