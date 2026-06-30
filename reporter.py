@@ -63,7 +63,16 @@ def print_scope_dry_run(resolved_scopes):
 
     if noop:
       print(f"    Already has target:    {len(noop)} object(s) (no-op)")
-    if not rs.objects:
+
+    if rs.smart_groups:
+      sg_actionable = [sg for sg in rs.smart_groups if not sg.target_already_present]
+      sg_noop = [sg for sg in rs.smart_groups if sg.target_already_present]
+      line = f"    smart groups:          {len(sg_actionable)} would be updated"
+      if sg_noop:
+        line += f", {len(sg_noop)} already reference target (no-op)"
+      print(line)
+
+    if not rs.objects and not rs.smart_groups:
       print("    (source group not found in any scope — would be skipped)")
     print()
 
@@ -72,8 +81,15 @@ def print_scope_results(results):
   for r in results:
     rs = r.resolved
     n = len(r.objects_updated)
+    sg_n = len(r.smart_groups_updated)
     if r.status == "OK":
-      print(f"[OK]   {rs.source_name} → {rs.target_name}  ({n} object{'s' if n != 1 else ''} updated)")
+      parts = []
+      if n:
+        parts.append(f"{n} object{'s' if n != 1 else ''} updated")
+      if sg_n:
+        parts.append(f"{sg_n} smart group{'s' if sg_n != 1 else ''} updated")
+      summary = ", ".join(parts) if parts else "0 objects updated"
+      print(f"[OK]   {rs.source_name} → {rs.target_name}  ({summary})")
     elif r.status == "SKIP":
       if r.skip_reason == "all_noop":
         print(f"[SKIP] {rs.source_name} → {rs.target_name}  (target group already present in all matching scopes)")
@@ -95,7 +111,9 @@ def write_scope_log(results, log_path):
       f.write(f"scope: status={r.status} source={rs.source_name}(id={rs.source_id}) target={rs.target_name}(id={rs.target_id}) type={rs.group_type}\n")
       for obj in r.objects_updated:
         f.write(f"  updated: {obj.object_type} '{obj.object_name}' (id={obj.object_id})\n")
-      if r.objects_updated:
+      for sg in r.smart_groups_updated:
+        f.write(f"  updated: smart_group '{sg.group_name}' (id={sg.group_id})\n")
+      if r.objects_updated or r.smart_groups_updated:
         f.write(f"  NOTE: '{rs.source_name}' (id={rs.source_id}) scope references replaced by '{rs.target_name}' (id={rs.target_id}) — group not deleted\n")
       if r.error:
         f.write(f"  error={r.error}\n")

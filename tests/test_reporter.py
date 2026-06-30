@@ -3,7 +3,7 @@ import reporter
 from executor import MergeResult
 from resolver import ResolvedMerge
 from scope_executor import ScopeResult
-from scope_resolver import ResolvedScope, ScopedObject
+from scope_resolver import ResolvedScope, ScopedObject, SmartGroupCriterionRef
 
 
 def _make_resolved(source_name="Old Group", target_name="New Group",
@@ -249,3 +249,57 @@ def test_write_scope_log_skip_no_deprecated(tmp_path):
   with open(log_path) as f:
     content = f.read()
   assert "DEPRECATED" not in content
+
+
+# ── smart group reporter tests ────────────────────────────────────────────────
+
+def _make_rs_with_smart(smart_groups, objects=None):
+  return ResolvedScope(
+    source_id=1, source_name="Old Group",
+    target_id=2, target_name="New Group",
+    group_type="computer",
+    objects=objects or [],
+    smart_groups=smart_groups,
+  )
+
+
+def test_print_scope_dry_run_shows_smart_group_count(capsys):
+  sg = SmartGroupCriterionRef(group_id=10, group_name="Smart Group A")
+  rs = _make_rs_with_smart([sg])
+  reporter.print_scope_dry_run([rs])
+  out = capsys.readouterr().out
+  assert "smart groups" in out
+  assert "1" in out
+
+
+def test_print_scope_dry_run_shows_noop_smart_group(capsys):
+  sg = SmartGroupCriterionRef(group_id=10, group_name="Smart Group A", target_already_present=True)
+  rs = _make_rs_with_smart([sg])
+  reporter.print_scope_dry_run([rs])
+  out = capsys.readouterr().out
+  assert "smart groups" in out
+  assert "no-op" in out
+
+
+def test_print_scope_dry_run_omits_smart_groups_section_when_empty(capsys):
+  rs = _make_rs_with_smart([])
+  reporter.print_scope_dry_run([rs])
+  out = capsys.readouterr().out
+  assert "smart groups" not in out
+
+
+def test_print_scope_results_shows_smart_groups_updated(capsys):
+  rs = _make_rs_with_smart([])
+  sg = SmartGroupCriterionRef(group_id=10, group_name="Smart Group A")
+  result = ScopeResult(resolved=rs, status="OK", smart_groups_updated=[sg])
+  reporter.print_scope_results([result])
+  out = capsys.readouterr().out
+  assert "1 smart group" in out
+
+
+def test_print_scope_results_omits_smart_groups_when_none_updated(capsys):
+  rs = _make_rs_with_smart([])
+  result = ScopeResult(resolved=rs, status="OK")
+  reporter.print_scope_results([result])
+  out = capsys.readouterr().out
+  assert "smart group" not in out
