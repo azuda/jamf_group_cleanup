@@ -42,7 +42,7 @@ python3 -m venv .venv
 
 echo "==> Decrypting credentials"
 AGE_FILE="$JAMF_CLIENT_DIR/.env.age"
-ENV_FILE="$PROJECT_DIR/.env"
+ENV_FILE="$JAMF_CLIENT_DIR/.env"
 
 if [ ! -f "$AGE_FILE" ]; then
 	echo "    WARNING: $AGE_FILE not found — copy it to $JAMF_CLIENT_DIR and then run:"
