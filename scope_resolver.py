@@ -192,8 +192,7 @@ def _scan_smart_groups(source_name, target_name, group_type, token, session):
 
     detail_root = ET.fromstring(detail_response.text)
 
-    # fall back to detail for is_smart when absent from list
-    if is_smart_text is None and detail_root.findtext("is_smart") == "false":
+    if detail_root.findtext("is_smart") != "true":
       continue
 
     group_name = detail_root.findtext("name") or ""
@@ -205,6 +204,12 @@ def _scan_smart_groups(source_name, target_name, group_type, token, session):
       cvalue = criterion.findtext("value")
       if cname == criterion_name:
         if cvalue == source_name:
+          if not source_found:
+            print(
+              f"  NOTE: smart group '{group_name}' (id={gid}) references '{source_name}' "
+              f"by name — confirm this criterion targets the correct group before applying",
+              file=sys.stderr,
+            )
           source_found = True
         elif cvalue == target_name:
           target_found = True

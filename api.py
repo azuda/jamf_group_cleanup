@@ -1,3 +1,4 @@
+import sys
 import jamf_client
 
 
@@ -42,5 +43,6 @@ def classic_delete(path, token, session):
 def put_with_retry(path, body, token, session):
   response = classic_put(path, body, token, session)
   if not response.ok:
+    print(f"  PUT {path} returned {response.status_code} — retrying once", file=sys.stderr)
     response = classic_put(path, body, token, session)
   return response

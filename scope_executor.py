@@ -46,14 +46,12 @@ def _replace_group_in_xml(xml_text, source_id, target_id, target_name, include_p
       if int(el.findtext("id") or 0) == source_id:
         el.find("id").text = str(target_id)
         el.find("name").text = target_name
-        break
 
   if in_exclusions:
     for el in root.findall(exclude_path):
       if int(el.findtext("id") or 0) == source_id:
         el.find("id").text = str(target_id)
         el.find("name").text = target_name
-        break
 
   return ET.tostring(root, encoding="unicode")
 
@@ -81,7 +79,7 @@ def execute_scope(resolved_scopes, token, session):
     actionable_sg = [sg for sg in rs.smart_groups if not sg.target_already_present]
 
     if not actionable and not actionable_sg:
-      reason = "all_noop" if (rs.objects or rs.smart_groups) else "not_found"
+      reason = "all_noop" if (rs.objects or rs.smart_groups) else "no_references"
       results.append(ScopeResult(resolved=rs, status="SKIP", skip_reason=reason))
       continue
 

@@ -33,7 +33,7 @@ def _init_auth():
   access_token, expires_in = get_token()
   token = {"t": access_token, "expiration": int(time.time()) + expires_in}
   session = make_session()
-  return access_token, token, session
+  return token, session
 
 
 def _run_pipeline(args, config_key, empty_msg, resolve_fn, dry_fn, execute_fn, print_fn, log_fn):
@@ -43,7 +43,7 @@ def _run_pipeline(args, config_key, empty_msg, resolve_fn, dry_fn, execute_fn, p
     print(empty_msg, file=sys.stderr)
     sys.exit(1)
 
-  access_token, token, session = _init_auth()
+  token, session = _init_auth()
   try:
     resolved, errors = resolve_fn(entries, token, session)
     if errors:
@@ -65,7 +65,7 @@ def _run_pipeline(args, config_key, empty_msg, resolve_fn, dry_fn, execute_fn, p
     if any(r.status == "FAIL" for r in results):
       sys.exit(1)
   finally:
-    invalidate_token(access_token)
+    invalidate_token(token["t"])
 
 
 def _cmd_merge(args):

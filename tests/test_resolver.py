@@ -1,5 +1,6 @@
 import resolver
 from resolver import ResolvedMerge, ValidationError
+from unittest.mock import MagicMock, patch
 
 
 COMPUTER_GROUP_XML = """<?xml version="1.0" encoding="UTF-8"?>
@@ -66,9 +67,6 @@ def test_parse_mobile_device_group():
 def test_parse_empty_group():
     result = resolver._parse_group_xml(EMPTY_GROUP_XML, "computer")
     assert result["members"] == []
-
-
-from unittest.mock import MagicMock, patch
 
 
 def _mock_response(status_code, text=""):

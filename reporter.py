@@ -44,6 +44,9 @@ def write_log(results, log_path):
         f.write(f"  error={r.error}\n")
 
 
+# ── scope pipeline ───────────────────────────────────────────────────────────
+
+
 def print_scope_dry_run(resolved_scopes):
   print("DRY RUN — no changes will be made\n")
   for i, rs in enumerate(resolved_scopes, 1):
@@ -94,7 +97,7 @@ def print_scope_results(results):
       if r.skip_reason == "all_noop":
         print(f"[SKIP] {rs.source_name} → {rs.target_name}  (target group already present in all matching scopes)")
       else:
-        print(f"[SKIP] {rs.source_name} → {rs.target_name}  (source group not found in any scope)")
+        print(f"[SKIP] {rs.source_name} → {rs.target_name}  (source group not referenced in any scope)")
     else:
       print(f"[FAIL] {rs.source_name} → {rs.target_name}  ({r.error})")
 
